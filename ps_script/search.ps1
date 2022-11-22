@@ -1,56 +1,60 @@
 # This ensures consistent encoding. 
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-# $glob=$args[0]
-#$searchterm=$args[0]
-$searchterm = "test"
-$glob = "assets/*.pdf"
+function MySearcher {
+	param (
+		$SearchTerm, $Glob
+	)
+
+	[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+	function CreatePdfFromRgaSearch {
+		param (
+			$RgaString
+		)
+		$searchMatch = [SearchMatch]::new()
+		$searchMatch.Filename = ($line | choose --field-separator : 0)
+		$searchMatch.Page = ($line | choose --field-separator : 2 | choose --character-wise 5:)
+		$searchMatch.LineNumber = ($line | choose --field-separator : 1)
+		$searchMatch.LineContent = ($line | choose --field-separator : 3:)
+		if ($searchMatch.Filename -eq "") {
+			<# Action to perform if the condition is true #>
+			return $null
+		}
+		return $searchMatch
+	}
+	class SearchMatch {
+		[string]$Filename
+		[string]$Page
+		[string]$LineNumber
+		[string]$LineContent
+	}
 
 
-$fieldSeparator = ":AOSIDJ:"
+	$rgaCommand = "rga --color=never --ignore-case  --line-number --no-heading --path-separator / --glob $Glob $SearchTerm"
 
-$rgaCommand = "rga --color=never  --line-number --no-heading --smart-case --path-separator / --encoding UTF-8 --glob $glob --ignore-case --field-match-separator $fieldSeparator $searchterm" 
+	$match = (Invoke-Expression $rgaCommand)
+	$searchMatches = @()
 
-$match = (Invoke-Expression $rgaCommand)
-# Write-Output $match
 
-$result = @()
-$id = 0
-foreach ($line in $match) {
-	$searchMatch = [SearchMatch]::new()
-	$searchMatch.Id = $id
-	$searchMatch.Filename, $searchMatch.Page, $searchMatch.LineContent = $line -split $fieldSeparator
-	$result += $searchMatch
-	$id += 1;
+	foreach ($line in $match) {
+		$searchMatches += CreatePdfFromRgaSearch -RgaString $line
+	}
+	$resultString = ""
+	foreach ($searchMatch in $searchMatches) {
+		$res = $searchMatch.Filename, $searchMatch.Page, $searchMatch.LineNumber, $searchMatch.LineContent -Join ":"
+		$res = $res.TrimEnd(":")
+		$resultString += -Join $res, "`n"
+	}
+
+	$selectedPdfString = $resultString | fzf --delimiter=:  --preview-window 'down:wrap,border-left,+{3}+3/3' --preview 'rga . {1} --with-filename --no-heading --line-number | bat --highlight-line {3} --color=always' --layout=reverse
+
+	$selectedPdf = CreatePdfFromRgaSearch -RgaString $selectedPdfString
+
+	if ($null -eq $selectedPdf) {
+		Write-Output "Closing program"
+		Break
+	}
+	$pdfCommand = "FoxitPDFReader.exe $($selectedPdf.Filename) /A page=$($selectedPdf.Page)"
+	Invoke-Expression $pdfCommand
+
 }
-
-$resultString = ""
-foreach ($line in $searchMatch) {
-	$resultString += $searchMatch.Filename, $searchMatch.Page, $searchMatch.LineContent, "`n" -Join ":"
-}
-
-$resultString |
-fzf --ansi --delimiter=":" `
-	--preview-window 'down,50%,+{2}+3/3' `
-	--preview 'rga "" {1} --line-number |bat --plain --color=always --highlight-line {2}' 
-#echo $resultString | fzf --ansi --delimiter=":" --preview 'bat {1} --highlight-line {2} --color always' --preview-window 'up,60%,border-bottom,+{2}+3/3,~3'
-
-class SearchMatch {
-	[int]$Id
-	[string]$Filename
-	[string]$Page
-	[string]$LineContent
-}
-
-#$result | fzf --header-lines=3
-
-#$result | fzf --ansi --delimiter : --preview "rga --encoding UTF-8 --glob {1} . --field-match-separator :#:| choose --field-separator :#: 1| bat --plain --color=always --highlight-line {2}" --preview-window 'down:wrap,border-left,+{2}+3/3' --layout=reverse | bat -p 
-# choose 0 2 --field-separator : --output-field-separator ?
-# echo $result
-# if ($page -eq ""){
-# 	echo "Closing program"
-# 	Break
-# }
-# $location, $page=$result.split('?')
-# $page= $page -replace "Page " -replace ""
-# echo "Opening $location at page $page"
-# FoxitPDFReader.exe "$location" /A page="$page"
+MySearcher -SearchTerm $args[0] -Glob $args[1]
