@@ -1,7 +1,7 @@
 # This ensures consistent encoding. 
 function MySearcher {
 	param (
-		$SearchTerm, $Glob
+		$Glob, $SearchTerm
 	)
 
 	[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -11,12 +11,11 @@ function MySearcher {
 			$RgaString
 		)
 		$searchMatch = [SearchMatch]::new()
-		$searchMatch.Filename = ($line | choose --field-separator : 0)
-		$searchMatch.Page = ($line | choose --field-separator : 2 | choose --character-wise 5:)
-		$searchMatch.LineNumber = ($line | choose --field-separator : 1)
-		$searchMatch.LineContent = ($line | choose --field-separator : 3:)
+		$searchMatch.Filename = ($RgaString | choose --field-separator : 0)
+		$searchMatch.Page = ($RgaString | choose --field-separator : 1 | choose --character-wise 5:)
+		$searchMatch.LineNumber = ($RgaString | choose --field-separator : 2)
+		$searchMatch.LineContent = ($RgaString | choose --field-separator : 3:)
 		if ($searchMatch.Filename -eq "") {
-			<# Action to perform if the condition is true #>
 			return $null
 		}
 		return $searchMatch
@@ -36,11 +35,16 @@ function MySearcher {
 
 
 	foreach ($line in $match) {
-		$searchMatches += CreatePdfFromRgaSearch -RgaString $line
+		$searchMatch = [SearchMatch]::new()
+		$searchMatch.Filename = ($line | choose --field-separator : 0)
+		$searchMatch.Page = ($line | choose --field-separator : 2 | choose --character-wise 5:)
+		$searchMatch.LineNumber = ($line | choose --field-separator : 1)
+		$searchMatch.LineContent = ($line | choose --field-separator : 3:)
+		$searchMatches += $searchMatch
 	}
 	$resultString = ""
 	foreach ($searchMatch in $searchMatches) {
-		$res = $searchMatch.Filename, $searchMatch.Page, $searchMatch.LineNumber, $searchMatch.LineContent -Join ":"
+		$res = $searchMatch.Filename, ("Page ", $searchMatch.Page -Join "" ), $searchMatch.LineNumber, $searchMatch.LineContent -Join ":"
 		$res = $res.TrimEnd(":")
 		$resultString += -Join $res, "`n"
 	}
@@ -53,8 +57,9 @@ function MySearcher {
 		Write-Output "Closing program"
 		Break
 	}
-	$pdfCommand = "FoxitPDFReader.exe $($selectedPdf.Filename) /A page=$($selectedPdf.Page)"
+	# C:\Users\Henrik\AppData\Local\SumatraPDF\SumatraPDF.exe -page 2 .\basismatnoter.pdf
+	$pdfCommand = "C:\Users\Henrik\AppData\Local\SumatraPDF\SumatraPDF.exe -page $($selectedPdf.Page) $($selectedPdf.Filename)"
 	Invoke-Expression $pdfCommand
-
 }
-MySearcher -SearchTerm $args[0] -Glob $args[1]
+# MySearcher -Glob $args[0] -SearchTerm $args[1]
+MySearcher -Glob "assets/basismatnoter.pdf" -SearchTerm "station"
