@@ -34,7 +34,12 @@ impl From<String> for SearchMatch {
 
 impl Display for SearchMatch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.path.extension().expect("The file should always have and ending.") == "pdf" {
+        if self
+            .path
+            .extension()
+            .expect("The file should always have and ending.")
+            == "pdf"
+        {
             let content = self.content.split_once(": ").unwrap().1;
             write!(f, "{}", content)
         } else {

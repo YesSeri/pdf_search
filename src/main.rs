@@ -1,9 +1,10 @@
+extern crate core;
+
 mod search_match;
 mod search_status;
 mod searcher;
 
 use std::env;
-use search_match::SearchMatch;
 use search_status::SearchStatus;
 use crate::searcher::SearchHandler;
 
@@ -12,7 +13,7 @@ fn main() {
     // let glob = args[1].clone();
     // let search_term = args[2].clone();
 
-    let glob = "test_assets/asjdnkaowiaoijodijoasd";
+    let glob = "test_assets/*.pdf";
     let search_term = "beautiful";
     let mut search_handler = SearchHandler::new(glob, search_term);
     let search_status = search_handler.search();
@@ -23,8 +24,8 @@ fn main() {
                 println!("{}", search_match);
             }
         }
-        SearchStatus::NoMatchesFound => {
-            println!("No matches found.");
+        SearchStatus::NotFound(s) => {
+            println!("{s}");
         }
         SearchStatus::NotSearched => { panic!("Search status should not be NotSearched") }
     }

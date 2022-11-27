@@ -1,6 +1,6 @@
 use crate::search_match::SearchMatch;
 use crate::search_status::SearchStatus;
-use std::process::Command;
+use std::process::{Command, Output};
 
 pub struct SearchHandler {
     pub search_status: SearchStatus,
@@ -21,15 +21,11 @@ impl SearchHandler {
     pub fn search(&mut self) -> SearchStatus {
         let search_hits = self.execute_rga();
         if let Some(search_hits_string) = search_hits {
-            self.search_status = SearchStatus::Found;
             self.handle_search_hits(search_hits_string);
-            // self.search_matches = Some(parse_search_hits(search_hits.unwrap()));
-        } else {
-            self.search_status = SearchStatus::NoMatchesFound;
         }
         self.search_status.clone()
     }
-    fn execute_rga(&self) -> Option<String> {
+    fn execute_rga(&mut self) -> Option<String> {
         let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", ];
         let mut powershell = Command::new("powershell.exe");
         let command = powershell.args(fixed_arguments)
@@ -37,6 +33,7 @@ impl SearchHandler {
             .arg(&self.glob)
             .arg(&self.search_term);
         let output = command.output().unwrap();
+        self.set_search_status(&output);
         let result = output.stdout;
         let string = String::from_utf8_lossy(&result).to_string();
         if string.is_empty() {
@@ -53,6 +50,9 @@ impl SearchHandler {
             .collect();
         self.search_matches = Some(search_matches);
     }
+    fn set_search_status(&mut self, output: &Output) {
+        self.search_status = output.into();
+    }
 }
 
 #[cfg(test)]
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_execute_rga_md() {
-        let sh = SearchHandler::new("test_assets/test.md", "beautiful");
+        let mut sh = SearchHandler::new("test_assets/test.md", "beautiful");
         let result = sh.execute_rga();
         let expected_result = "test_assets/test.md:5:This is beautiful text.\r\n".to_string();
         assert!(result.is_some());
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_execute_rga_pdf() {
-        let sh = SearchHandler::new("test_assets/test.pdf", "subheading");
+        let mut sh = SearchHandler::new("test_assets/test.pdf", "subheading");
         let result = sh.execute_rga();
         let expected_result = "test_assets/test.pdf:2:Page 1: This is a subheading - Test\n".to_string();
         assert!(result.is_some());
@@ -79,18 +79,22 @@ mod tests {
 
     #[test]
     fn no_such_file() {
-        let sh = SearchHandler::new("assets/file_does_not_exist.pdf", "subheading");
+        let mut sh = SearchHandler::new("assets/file_does_not_exist.pdf", "subheading");
         let result = sh.execute_rga();
-        let expected_result = None;
-        assert_eq!(sh.search_status, SearchStatus::NoFilesFound);
+        let expected_result: Option<String> = None;
+        let expected_status_string = "No files were searched, which means ripgrep probably applied a filter you didn't expect.\nRunning with --debug will show why files are being skipped.\n";
         assert_eq!(result, expected_result);
+        assert_eq!(sh.search_status, SearchStatus::NotFound(expected_status_string.to_string()));
     }
 
-    fn no_such_file() {
-        let sh = SearchHandler::new("assets/*.pdf", "phrase that doesnt exist in test files");
+    #[test]
+    fn no_such_match() {
+        let mut sh = SearchHandler::new("assets/*.pdf", "phrase that doesnt exist in test files");
         let result = sh.execute_rga();
-        let expected_result = None;
-        assert_eq!(sh.search_status, SearchStatus::NoMatchesFound);
+        let expected_result: Option<String> = None;
+        let expected_status_string = "that: The system cannot find the file specified. (os error 2)\ndoesnt: The system cannot find the file specified. (os error 2)\nexist: The system cannot find the file specified. (os error 2)\nin: The system cannot find the file specified. (os error 2)\ntest: The system cannot find the file specified. (os error 2)\nfiles: The system cannot find the file specified. (os error 2)\n";
+        assert_eq!(result, expected_result);
+        assert_eq!(sh.search_status, SearchStatus::NotFound(expected_status_string.to_string()));
     }
 
 
