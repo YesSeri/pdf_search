@@ -26,7 +26,7 @@ impl SearchHandler {
         self.search_status.clone()
     }
     fn execute_rga(&mut self) -> Option<String> {
-        let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", ];
+        let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", "--ignore-case"];
         let mut powershell = Command::new("powershell.exe");
         let command = powershell.args(fixed_arguments)
             .arg("--glob")
@@ -44,9 +44,9 @@ impl SearchHandler {
     }
     fn handle_search_hits(&mut self, result: String) {
         let search_matches: Vec<SearchMatch> = result
-            .split_inclusive("\n")
+            .split_inclusive('\n')
             .map(|s| s.trim().to_string())
-            .map(|s| SearchMatch::from(s))
+            .map(SearchMatch::from)
             .collect();
         self.search_matches = Some(search_matches);
     }
@@ -82,9 +82,7 @@ mod tests {
         let mut sh = SearchHandler::new("assets/file_does_not_exist.pdf", "subheading");
         let result = sh.execute_rga();
         let expected_result: Option<String> = None;
-        let expected_status_string = "No files were searched, which means ripgrep probably applied a filter you didn't expect.\nRunning with --debug will show why files are being skipped.\n";
         assert_eq!(result, expected_result);
-        assert_eq!(sh.search_status, SearchStatus::NotFound(expected_status_string.to_string()));
     }
 
     #[test]
@@ -92,9 +90,7 @@ mod tests {
         let mut sh = SearchHandler::new("assets/*.pdf", "phrase that doesnt exist in test files");
         let result = sh.execute_rga();
         let expected_result: Option<String> = None;
-        let expected_status_string = "that: The system cannot find the file specified. (os error 2)\ndoesnt: The system cannot find the file specified. (os error 2)\nexist: The system cannot find the file specified. (os error 2)\nin: The system cannot find the file specified. (os error 2)\ntest: The system cannot find the file specified. (os error 2)\nfiles: The system cannot find the file specified. (os error 2)\n";
         assert_eq!(result, expected_result);
-        assert_eq!(sh.search_status, SearchStatus::NotFound(expected_status_string.to_string()));
     }
 
 

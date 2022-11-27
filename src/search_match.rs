@@ -3,8 +3,8 @@ use std::path;
 
 #[derive(PartialEq, Debug)]
 pub struct SearchMatch {
-    path: path::PathBuf,
-    line: usize,
+    pub path: path::PathBuf,
+    pub line: usize,
     pub content: String,
 }
 
@@ -20,7 +20,7 @@ impl SearchMatch {
 
 impl From<String> for SearchMatch {
     fn from(string: String) -> Self {
-        let mut split = string.splitn(3, ":");
+        let mut split = string.splitn(3, ':');
         let path = split.next().unwrap();
         let line = split.next().unwrap();
         let content = split.next().unwrap().trim();
@@ -34,20 +34,11 @@ impl From<String> for SearchMatch {
 
 impl Display for SearchMatch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self
-            .path
-            .extension()
-            .expect("The file should always have and ending.")
-            == "pdf"
-        {
-            let content = self.content.split_once(": ").unwrap().1;
-            write!(f, "{}", content)
-        } else {
-            write!(f, "{}", self.content)
-        }
+        write!(f, "{}", self.content)
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -67,6 +58,6 @@ mod tests {
     fn display_test() {
         let string = "test_assets/test.pdf:2:Page 1: This is a subheading - Test\n".to_string();
         let search_match = SearchMatch::from(string);
-        assert_eq!(search_match.to_string(), "This is a subheading - Test");
+        assert_eq!(search_match.to_string(), "Page 1: This is a subheading - Test");
     }
 }

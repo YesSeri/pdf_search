@@ -4,11 +4,29 @@ use std::process::Output;
 #[derive(Debug, PartialEq, Clone)]
 pub enum SearchStatus {
     Found,
-    NotFound(String),
+    NoFilesFound,
+    NoMatchesFound,
     NotSearched,
 }
 
-impl SearchStatus {}
+impl SearchStatus {
+    pub fn get_status_string(&self) -> String {
+        match self {
+            SearchStatus::Found => {
+                "Found matches:".to_string()
+            }
+            SearchStatus::NoFilesFound => {
+                "No files found, make sure your glob pattern is correct.".to_string()
+            }
+            SearchStatus::NoMatchesFound => {
+                "No matches for your search term has been found".to_string()
+            }
+            SearchStatus::NotSearched => {
+                "The search has not been run".to_string()
+            }
+        }
+    }
+}
 
 
 impl SearchStatus {
@@ -19,12 +37,15 @@ impl SearchStatus {
 
 impl From<&Output> for SearchStatus {
     fn from(output: &Output) -> Self {
-        let error_message = String::from_utf8_lossy(&output.stderr).to_string();
         if output.status.success() {
-            if output.stdout.is_empty() {
-                return SearchStatus::NotFound(String::from_utf8_lossy(&output.stderr).parse().unwrap());
+            if output.stderr.is_empty() {
+                if output.stdout.is_empty() {
+                    return SearchStatus::NoMatchesFound;
+                } else {
+                    return SearchStatus::Found;
+                }
             } else {
-                return SearchStatus::Found;
+                return SearchStatus::NoFilesFound;
             }
         } else {
             panic!("Error in conversion to SearchStatus.");
@@ -32,6 +53,7 @@ impl From<&Output> for SearchStatus {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
