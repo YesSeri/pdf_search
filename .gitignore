@@ -1,1 +1,5 @@
 /target
+/ps_script
+!/ps_script/pdfsearch.ps1
+.idea
+.vscode

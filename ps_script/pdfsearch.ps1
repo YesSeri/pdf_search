@@ -61,5 +61,4 @@ function MySearcher {
 	$pdfCommand = "C:\Users\Henrik\AppData\Local\SumatraPDF\SumatraPDF.exe -page $($selectedPdf.Page) $($selectedPdf.Filename)"
 	Invoke-Expression $pdfCommand
 }
-# MySearcher -Glob $args[0] -SearchTerm $args[1]
-MySearcher -Glob "assets/basismatnoter.pdf" -SearchTerm "station"
+MySearcher -Glob $args[0] -SearchTerm $args[1]
