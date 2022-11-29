@@ -1,6 +1,8 @@
+use std::path::PathBuf;
 use crate::search_match::SearchMatch;
 use crate::search_status::SearchStatus;
 use std::process::{Command, Output};
+use crossterm::terminal;
 
 pub struct SearchHandler {
     pub search_status: SearchStatus,
@@ -26,7 +28,7 @@ impl SearchHandler {
         self.search_status.clone()
     }
     fn execute_rga(&mut self) -> Option<String> {
-        let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", "--ignore-case"];
+        let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", "--ignore-case", "--type", " pdf", "-C", "8"];
         let mut powershell = Command::new("powershell.exe");
         let command = powershell.args(fixed_arguments)
             .arg("--glob")
@@ -44,7 +46,7 @@ impl SearchHandler {
     }
     fn handle_search_hits(&mut self, result: String) {
         let search_matches: Vec<SearchMatch> = result
-            .split_inclusive('\n')
+            .split("--")
             .map(|s| s.trim().to_string())
             .map(SearchMatch::from)
             .collect();
@@ -52,6 +54,28 @@ impl SearchHandler {
     }
     fn set_search_status(&mut self, output: &Output) {
         self.search_status = output.into();
+    }
+    pub fn pretty_formatted(&self) -> String {
+        let mut string = String::from(&self.search_status.get_status_string());
+        match self.search_status {
+            SearchStatus::Found => {
+                let search_matches = self.search_matches.as_ref().unwrap();
+                let mut current_file: PathBuf = PathBuf::new();
+                for search_match in search_matches {
+                    if current_file != search_match.path {
+                        current_file = search_match.path.clone();
+                        string += &*format!("\n{}:\n", current_file.display());
+                    }
+
+                    string += format!("{}\n", search_match).as_str();
+                }
+            }
+            SearchStatus::NotSearched => {
+                panic!("Search status should not be NotSearched: {}", string)
+            }
+            SearchStatus::NoMatchesFound | SearchStatus::NoFilesFound => {}
+        }
+        string
     }
 }
 

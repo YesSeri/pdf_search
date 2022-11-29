@@ -40,12 +40,12 @@ impl From<&Output> for SearchStatus {
         if output.status.success() {
             if output.stderr.is_empty() {
                 if output.stdout.is_empty() {
-                    return SearchStatus::NoMatchesFound;
+                    SearchStatus::NoMatchesFound
                 } else {
-                    return SearchStatus::Found;
+                    SearchStatus::Found
                 }
             } else {
-                return SearchStatus::NoFilesFound;
+                SearchStatus::NoFilesFound
             }
         } else {
             panic!("Error in conversion to SearchStatus.");
