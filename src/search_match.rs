@@ -30,8 +30,8 @@ impl SearchMatch {
 
 impl From<String> for SearchMatch {
     fn from(string: String) -> Self {
-        let re_match = Regex::new(r"\.pdf:\d*:Page\s\d*: ").unwrap();
-        let re_only_keep_text = Regex::new(r".*\.pdf[:-]\d*[:-]Page\s\d*: ").unwrap();
+        let re_match = Regex::new(r"\.pdf:\d*:Page\s\d*:").unwrap();
+        let re_only_keep_text = Regex::new(r".*\.pdf[:-]\d*[:-]Page\s\d*:").unwrap();
 
         let result = string.lines().find(|line| {
             re_match.is_match(line)

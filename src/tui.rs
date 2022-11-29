@@ -13,7 +13,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use tui::widgets::Paragraph;
+use tui::widgets::{Paragraph, Wrap};
 use crate::search_match::SearchMatch;
 
 struct StatefulList<T> {
@@ -59,7 +59,7 @@ impl<T> StatefulList<T> {
     }
 }
 
-pub fn run(items: Vec<SearchMatch>) -> Result<SearchMatch, io::Error> {
+pub fn run(items: Vec<SearchMatch>, search_term: &str) -> Result<SearchMatch, io::Error> {
     let mut stateful_list = StatefulList::with_items(items);
 
     // setup terminal
@@ -70,7 +70,7 @@ pub fn run(items: Vec<SearchMatch>) -> Result<SearchMatch, io::Error> {
     let mut terminal = Terminal::new(backend)?;
 
 
-    let selected_search_match = run_app(&mut terminal, &mut stateful_list)?;
+    let selected_search_match = run_app(&mut terminal, &mut stateful_list, search_term)?;
 
     // draw_ui(&mut terminal, &mut stateful_list)?;
     // thread::sleep(Duration::from_millis(4000));
@@ -87,11 +87,11 @@ pub fn run(items: Vec<SearchMatch>) -> Result<SearchMatch, io::Error> {
     Ok(selected_search_match)
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list: &mut StatefulList<SearchMatch>) -> Result<SearchMatch, io::Error> {
+fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list: &mut StatefulList<SearchMatch>, search_term: &str) -> Result<SearchMatch, io::Error> {
     let tick_rate = Duration::from_millis(250);
     let mut last_tick = Instant::now();
     loop {
-        draw_ui(terminal, stateful_list)?;
+        draw_ui(terminal, stateful_list, search_term)?;
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
@@ -117,7 +117,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
     }
 }
 
-fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list: &mut StatefulList<SearchMatch>) -> Result<(), io::Error> {
+fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list: &mut StatefulList<SearchMatch>, search_term: &str) -> Result<(), io::Error> {
     terminal.draw(|f| {
         // Create two chunks with equal horizontal screen space
         let chunks = Layout::default()
@@ -157,9 +157,23 @@ fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
         f.render_stateful_widget(items, chunks[0], &mut stateful_list.state);
 
         let context = stateful_list.items[stateful_list.state.selected().unwrap()].context.clone();
-        let spans = context.lines().map(Spans::from).collect::<Vec<_>>();
 
-        let paragraph = Paragraph::new(spans).style(Style::default())
+        // let mut spans = context.lines().map(Spans::from).collect::<Vec<_>>();
+        let mut spans = Vec::new();
+        for line in context.lines() {
+            let lowercase_line = line.to_lowercase();
+            let lowercase_term = search_term.to_lowercase();
+            if lowercase_line.contains(lowercase_term.as_str()) {
+                spans.push(Spans::from(Span::styled(line, Style::default().add_modifier(Modifier::BOLD).bg(Color::LightYellow))));
+                // let span = Spans::from(Span::styled(format!(), Style::default().bg(Color::LightBlue).fg(Color::Black)));
+            } else {
+                spans.push(Spans::from(line));
+            }
+        }
+        let result_info_span = Spans::from(Span::styled(format!("Number of results: {}, below is preview.", stateful_list.items.len().to_string()), Style::default().bg(Color::LightBlue).fg(Color::Black)));
+        spans.insert(0, result_info_span);
+
+        let paragraph = Paragraph::new(spans).style(Style::default()).wrap(Wrap { trim: true })
             .block(Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default().bg(Color::White).fg(Color::Black))

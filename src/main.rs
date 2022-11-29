@@ -34,7 +34,7 @@ fn main() {
     search_handler.search();
 
     if let Some(search_matches) = search_handler.search_matches {
-        let selected_match = tui::run(search_matches);
+        let selected_match = tui::run(search_matches, &search_term);
         if let Ok(selected_match) = selected_match {
             let pdf_absolute_path = make_absolute_remove_long_path(&selected_match.path);
             let sumatra_exe = find_sumatra_exe();
