@@ -33,10 +33,19 @@ impl From<String> for SearchMatch {
         let re_match = Regex::new(r"\.pdf:\d*:Page\s\d*: ").unwrap();
         let re_only_keep_text = Regex::new(r".*\.pdf[:-]\d*[:-]Page\s\d*: ").unwrap();
 
-        let first_match_string: &str = string.lines().find(|line| {
+        let result = string.lines().find(|line| {
             re_match.is_match(line)
-        }).unwrap();
+        });
 
+        let first_match_string = match result {
+            None => {
+                println!("No match found for string:\n{}", string);
+                panic!();
+            }
+            Some(r) => {
+                r
+            }
+        };
         let context: String = string.to_string();
         let context = re_only_keep_text.replace_all(&context, "").to_string();
 

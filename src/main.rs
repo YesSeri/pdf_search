@@ -38,7 +38,8 @@ fn main() {
         if let Ok(selected_match) = selected_match {
             let pdf_absolute_path = make_absolute_remove_long_path(&selected_match.path);
             let sumatra_exe = find_sumatra_exe();
-            let command = format!("Start-Process -FilePath {} '{} -page {}'", sumatra_exe, pdf_absolute_path, &selected_match.page.to_string());
+            let command = format!("Start-Process -FilePath '{}' '\"{}\" -page {}'", sumatra_exe, pdf_absolute_path, &selected_match.page.to_string());
+
             println!("opening {}, page {}", pdf_absolute_path, &selected_match.page.to_string());
             let _ = run_powershell_command(command.as_str()).unwrap();
         } else {
@@ -59,13 +60,14 @@ fn make_absolute_remove_long_path(path: &PathBuf) -> String {
 
 fn find_sumatra_exe() -> String {
     const SUMATRA_EXE_NAME: &str = "SumatraPDF-3.4.6-64.exe";
-    let sumatra_exe = if cfg!(debug_assertions) {
+    let sumatra_exe_dir = if cfg!(debug_assertions) {
         println!("Debugging enabled");
-        env::current_dir().unwrap()
+        // env::current_dir().unwrap()
+        PathBuf::from("C:\\Programming\\rust\\pdfSearch")
     } else {
         env::current_exe().unwrap().join("..")
     };
-    make_absolute_remove_long_path(&sumatra_exe.join(SUMATRA_EXE_NAME))
+    make_absolute_remove_long_path(&sumatra_exe_dir.join(SUMATRA_EXE_NAME))
 }
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ pub struct SearchHandler {
     search_term: String,
 }
 
+
 impl SearchHandler {
     pub fn new(glob: &str, search_term: &str) -> SearchHandler {
         SearchHandler {
@@ -46,12 +47,13 @@ impl SearchHandler {
     }
     fn handle_search_hits(&mut self, result: String) {
         let search_matches: Vec<SearchMatch> = result
-            .split("--")
+            .split("\n--\n")
             .map(|s| s.trim().to_string())
             .map(SearchMatch::from)
             .collect();
         self.search_matches = Some(search_matches);
     }
+
     fn set_search_status(&mut self, output: &Output) {
         self.search_status = output.into();
     }
