@@ -3,6 +3,7 @@ use crate::search_match::SearchMatch;
 use crate::search_status::SearchStatus;
 use std::process::{Command, Output};
 use crossterm::terminal;
+use crate::powershell::run_powershell_command;
 
 pub struct SearchHandler {
     pub search_status: SearchStatus,
@@ -29,13 +30,14 @@ impl SearchHandler {
         self.search_status.clone()
     }
     fn execute_rga(&mut self) -> Option<String> {
-        let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", "--ignore-case", "--type", " pdf", "-C", "8"];
-        let mut powershell = Command::new("powershell.exe");
-        let command = powershell.args(fixed_arguments)
-            .arg("--glob")
-            .arg(&self.glob)
-            .arg(&self.search_term);
-        let output = command.output().unwrap();
+        // let fixed_arguments = ["rga", "--no-heading", "--line-number", "--path-separator", "/", "--ignore-case", "--type", " pdf", "-C", "8"];
+        // let mut powershell = Command::new("powershell.exe");
+        // let command = powershell.args(fixed_arguments)
+        //     .arg("--glob")
+        //     .arg(&self.glob)
+        //     .arg(&self.search_term);
+        let command = format!("rga --no-heading --line-number --path-separator / --ignore-case --glob '{}' -C 8 '{}'", self.glob, self.search_term);
+        let output = run_powershell_command(&command).unwrap();
         self.set_search_status(&output);
         let result = output.stdout;
         let string = String::from_utf8_lossy(&result).to_string();
