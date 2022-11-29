@@ -37,6 +37,7 @@ impl From<String> for SearchMatch {
             re_match.is_match(line)
         });
 
+        dbg!(result);
         let first_match_string = match result {
             None => {
                 println!("No match found for string:\n{}", string);

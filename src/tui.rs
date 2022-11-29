@@ -14,6 +14,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use tui::widgets::{Paragraph, Wrap};
+use crate::pdf_opener;
 use crate::search_match::SearchMatch;
 
 struct StatefulList<T> {
@@ -99,8 +100,8 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Enter => {
-                        let selected_item = stateful_list.items[stateful_list.state.selected().unwrap()].clone();
-                        return Ok(selected_item);
+                        let selected_match = stateful_list.items[stateful_list.state.selected().unwrap()].clone();
+                        pdf_opener::open_pdf(&selected_match);
                     }
                     KeyCode::Char('q') => {
                         return Err(io::Error::new(io::ErrorKind::Other, "User quit"));
