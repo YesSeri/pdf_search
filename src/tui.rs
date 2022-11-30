@@ -1,6 +1,7 @@
 use std::{io, thread, time::Duration};
 use std::panic::panic_any;
 use std::path::{Path, PathBuf};
+use std::process::exit;
 use std::thread::sleep;
 use std::time::Instant;
 use tui::{
@@ -11,11 +12,7 @@ use tui::{
     widgets::{Widget, Block, Borders, List, ListItem, ListState},
     Frame, Terminal,
 };
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::{event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode}, execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, terminal};
 use crossterm::terminal::ClearType;
 use tui::widgets::{Paragraph, Wrap};
 use crate::pdf_opener;
@@ -27,6 +24,9 @@ struct StatefulList<T> {
 }
 
 impl<T> StatefulList<T> {
+    fn get_selected_item(&self) -> &T {
+        &self.items[self.state.selected().unwrap()]
+    }
     fn with_items(items: Vec<T>) -> StatefulList<T> {
         let mut sl = StatefulList {
             state: ListState::default(),
@@ -104,8 +104,8 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Enter => {
-                        let selected_match = stateful_list.items[stateful_list.state.selected().unwrap()].clone();
-                        pdf_opener::open_pdf(&selected_match);
+                        let selected_match = stateful_list.get_selected_item();
+                        pdf_opener::open_pdf(selected_match);
                         // I want to redraw the screen after the pdf has opened so it doesnt look weird. We wait a little and then do it.
                         sleep(Duration::from_millis(500));
                         terminal.clear()?;
@@ -129,13 +129,10 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
 fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list: &mut StatefulList<SearchMatch>, search_term: &str) -> Result<(), io::Error> {
     terminal.draw(|f| {
         // Create two chunks with equal horizontal screen space
-        let size = f.size();
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(f.size());
-
-
         let selected_match = &stateful_list.items[stateful_list.state.selected().unwrap()];
         // Iterate through all elements in the `items` app and append some debug text to it.
         let mut current_file_path: Option<PathBuf> = None;
@@ -143,7 +140,7 @@ fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
             .iter()
             .map(|search_match| {
                 let mut lines = if current_file_path.is_none() || *current_file_path.as_ref().unwrap() != search_match.path {
-                    let mut vec = vec![Spans::from("-".repeat((size.width / 2) as usize))];
+                    let mut vec = vec![Spans::from("-".repeat((f.size().width / 2) as usize))];
                     current_file_path = Some(search_match.path.clone());
                     vec.push(Spans::from(Span::styled(
                         search_match.path.to_str().unwrap(),

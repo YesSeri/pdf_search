@@ -14,6 +14,7 @@ use search_status::SearchStatus;
 use std::{env, fs, path::PathBuf};
 use crossterm::terminal::ClearType;
 use crate::fuzzy_finder::FuzzyFinder;
+use crate::pdf_opener::delete_settings_file;
 use crate::powershell::run_powershell_command;
 
 
@@ -29,7 +30,7 @@ fn main() {
 
     if let Some(search_matches) = search_handler.search_matches {
         tui::run(search_matches, &search_term).unwrap();
-
+        delete_settings_file();
     } else {
         println!("No matches found.");
     }
