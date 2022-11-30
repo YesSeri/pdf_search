@@ -26,18 +26,24 @@ impl SearchMatch {
     pub fn fuzzy_display(&self) -> String {
         format!("{} : {} : {}", &self.path.display().to_string(), &self.page.to_string(), &self.to_string())
     }
+
+    // Used to filter pointless rows containing only ● and stuff like that
+    fn string_contains_ascii_letters(s:&str) -> bool{
+        s.chars().any(|c| c.is_ascii_alphabetic())
+    }
 }
 
 impl From<String> for SearchMatch {
     fn from(string: String) -> Self {
-        let re_match = Regex::new(r"\.pdf:\d*:Page\s\d*:").unwrap();
-        let re_only_keep_text = Regex::new(r".*\.pdf[:-]\d*[:-]Page\s\d*:").unwrap();
+        let re_match = Regex::new(r"^.*\.pdf:\d*:Page\s\d*:\s?").unwrap();
+        // removes these two lines. Both can optionally end with blank_space
+        // file_path/file.pdf:1:Page 1:
+        // file_path/file.pdf-6-Page 1:
+        let re_only_keep_text = Regex::new(r"^.*\.pdf[:-]\d*[:-]Page\s\d*:\s?").unwrap();
 
         let result = string.lines().find(|line| {
             re_match.is_match(line)
         });
-
-        dbg!(result);
         let first_match_string = match result {
             None => {
                 println!("No match found for string:\n{}", string);
@@ -47,8 +53,14 @@ impl From<String> for SearchMatch {
                 r
             }
         };
-        let context: String = string.to_string();
-        let context = re_only_keep_text.replace_all(&context, "").to_string();
+        let context: Vec<String> = string.lines().
+            filter_map(|line| {
+                // If the text is empty we dont want it, so we return none
+                // if there is text, we return Some(text)
+                let text = re_only_keep_text.replace(line, "");
+                SearchMatch::string_contains_ascii_letters(&text).then_some(text.to_string())
+            }).collect();
+        let context = context.join("\n");
 
         let mut split = first_match_string.splitn(4, ':');
         let path = split.next().unwrap();
@@ -64,10 +76,11 @@ impl From<String> for SearchMatch {
             page,
             line.parse().unwrap(),
             content.to_string(),
-            context.trim().to_string(),
+            context,
         )
     }
 }
+
 
 impl Display for SearchMatch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -79,6 +92,24 @@ impl Display for SearchMatch {
 mod tests {
     use crate::powershell::run_powershell_command;
     use super::*;
+
+    #[test]
+    fn convert_string_empty_line_middle() {
+        let string = r#"test_assets/context.pdf-1-Page 1: c
+test_assets/context.pdf:2:Page 1: Test
+test_assets/context.pdf-3-Page 1:
+test_assets/context.pdf-4-Page 1: more text"#.to_string();
+        let sm = SearchMatch::from(string);
+        let expected_sm = SearchMatch::new(
+            PathBuf::from("test_assets/context.pdf"),
+            1,
+            2,
+            "Test".to_string(),
+            "c\nTest\nmore text".to_string(),
+        );
+        assert_eq!(expected_sm.context, sm.context);
+        assert_eq!(expected_sm, sm);
+    }
 
     #[test]
     fn convert_string() {
@@ -97,43 +128,18 @@ test_assets/context.pdf-4-Page 1:"#;
             1,
             2,
             "Test".to_string(),
-            r#"test_assets/context.pdf-1-Page 1: c
-test_assets/context.pdf:2:Page 1: Test
-test_assets/context.pdf-3-Page 1: d
-test_assets/context.pdf-4-Page 1:"#.to_string(),
+            "c\nTest\nd".to_string(),
         );
         assert_eq!(sm, expected_sm);
-// let search_matches: SearchMatch = cmd_result
-//             .map(|s| s.trim().to_string())
-//             .map(SearchMatch::from)
-//             .collect();
-        // let string = "test_assets/test.pdf:2:Page 1: This is a subheading - Test\n".to_string();
-        // let expected = SearchMatch::new(
-        //     path::PathBuf::from("test_assets/test.pdf"),
-        //     1,
-        //     2,
-        //     "This is a subheading - Test".to_string(),
-        // );
-        // let search_match = SearchMatch::from(string);
-        // assert_eq!(search_match, expected);
     }
-    // #[test]
-    // fn convert_string() {
-    //     let string = "test_assets/test.pdf:2:Page 1: This is a subheading - Test\n".to_string();
-    //     let expected = SearchMatch::new(
-    //         path::PathBuf::from("test_assets/test.pdf"),
-    //         1,
-    //         2,
-    //         "This is a subheading - Test".to_string(),
-    //     );
-    //     let search_match = SearchMatch::from(string);
-    //     assert_eq!(search_match, expected);
-    // }
-    //
-    // #[test]
-    // fn display_test() {
-    //     let string = "test_assets/test.pdf:2:Page 1: This is a subheading - Test\n".to_string();
-    //     let search_match = SearchMatch::from(string);
-    //     assert_eq!(search_match.to_string(), "Page 1: This is a subheading - Test");
-    // }
+    #[test]
+    fn string_contains_ascii(){
+        let s1 = "hi there";
+        let s2 = "höj there";
+        let s3 = "öäå";
+        assert!(SearchMatch::string_contains_ascii_letters(s1));
+        assert!(SearchMatch::string_contains_ascii_letters(s2));
+        assert!(!SearchMatch::string_contains_ascii_letters(s3));
+    }
+
 }

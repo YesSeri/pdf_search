@@ -7,12 +7,12 @@ mod searcher;
 mod fuzzy_finder;
 mod powershell;
 mod tui;
-mod tui_example;
 mod pdf_opener;
 
 use crate::searcher::SearchHandler;
 use search_status::SearchStatus;
 use std::{env, fs, path::PathBuf};
+use crossterm::terminal::ClearType;
 use crate::fuzzy_finder::FuzzyFinder;
 use crate::powershell::run_powershell_command;
 
@@ -28,7 +28,8 @@ fn main() {
     search_handler.search();
 
     if let Some(search_matches) = search_handler.search_matches {
-        tui::run(search_matches, &search_term);
+        tui::run(search_matches, &search_term).unwrap();
+
     } else {
         println!("No matches found.");
     }
