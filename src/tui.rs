@@ -1,4 +1,6 @@
 use std::{io, thread, time::Duration};
+use std::panic::panic_any;
+use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Instant;
 use tui::{
@@ -129,20 +131,29 @@ fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
         // Create two chunks with equal horizontal screen space
         let size = f.size();
         let chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-                .split(f.size());
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .split(f.size());
 
 
+        let selected_match = &stateful_list.items[stateful_list.state.selected().unwrap()];
         // Iterate through all elements in the `items` app and append some debug text to it.
+        let mut current_file_path: Option<PathBuf> = None;
         let items: Vec<ListItem> = stateful_list.items
             .iter()
             .map(|search_match| {
-                let mut lines = vec![Spans::from(search_match.content.clone())];
-                lines.push(Spans::from(Span::styled(
-                    search_match.path.to_str().unwrap(),
-                    Style::default().add_modifier(Modifier::ITALIC),
-                )));
+                let mut lines = if current_file_path.is_none() || *current_file_path.as_ref().unwrap() != search_match.path {
+                    let mut vec = vec![Spans::from("-".repeat((size.width / 2) as usize))];
+                    current_file_path = Some(search_match.path.clone());
+                    vec.push(Spans::from(Span::styled(
+                        search_match.path.to_str().unwrap(),
+                        Style::default().add_modifier(Modifier::BOLD),
+                    )));
+                    vec
+                } else {
+                    vec![]
+                };
+                lines.push(Spans::from(search_match.content.to_string()));
                 lines.push(Spans::from(Span::styled(
                     format!("Page: {} Line: {}", search_match.page, search_match.line),
                     Style::default().add_modifier(Modifier::ITALIC),
@@ -153,7 +164,7 @@ fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
 
         // We can now render the item list
         let items = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Search Results"))
+            .block(Block::default().borders(Borders::ALL).title(selected_match.path.to_str().unwrap_or("Unknown File")))
             .highlight_style(
                 Style::default()
                     .bg(Color::LightGreen)
@@ -164,11 +175,10 @@ fn draw_ui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, stateful_list:
         // We can now render the item list
         f.render_stateful_widget(items, chunks[0], &mut stateful_list.state);
 
-        let context = stateful_list.items[stateful_list.state.selected().unwrap()].context.clone();
 
         // let mut spans = context.lines().map(Spans::from).collect::<Vec<_>>();
         let mut spans = Vec::new();
-        for line in context.lines() {
+        for line in selected_match.context.lines() {
             let lowercase_line = line.to_lowercase();
             let lowercase_term = search_term.to_lowercase();
             if lowercase_line.contains(lowercase_term.as_str()) {
